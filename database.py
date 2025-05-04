@@ -141,7 +141,7 @@ def create_users_table():
     conn.close()
 
 def get_user_email(username):
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect("users.db")  # Erről plants.db-ről users.db-re cserélve
     cur = conn.cursor()
     cur.execute("SELECT email FROM users WHERE username = ?", (username,))
     row = cur.fetchone()
@@ -153,19 +153,5 @@ def delete_user_and_plants(username):
     cur = conn.cursor()
     cur.execute("DELETE FROM plants WHERE username = ?", (username,))
     cur.execute("DELETE FROM users WHERE username = ?", (username,))
-    conn.commit()
-    conn.close()
-
-def create_users_table():
-    conn = sqlite3.connect("users.db")
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY,
-            username TEXT UNIQUE,
-            password TEXT,
-            email TEXT
-        )
-    """)
     conn.commit()
     conn.close()
