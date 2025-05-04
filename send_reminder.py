@@ -9,6 +9,36 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_NAME_PLANTS = os.path.join(BASE_DIR, "plants.db")
 DB_NAME_USERS = os.path.join(BASE_DIR, "users.db")
 
+def create_users_table():
+    conn = sqlite3.connect("users.db")
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY,
+            username TEXT UNIQUE,
+            password TEXT,
+            email TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def create_plants_table():
+    conn = sqlite3.connect("plants.db")
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS plants (
+            id INTEGER PRIMARY KEY,
+            username TEXT,
+            name TEXT,
+            frequency_days INTEGER,
+            last_watered TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
 def get_all_plants():
     conn = sqlite3.connect(DB_NAME_PLANTS)
     cur = conn.cursor()
@@ -44,6 +74,8 @@ def send_email(to_emails, subject, body, sender_email, sender_password,
         server.sendmail(sender_email, to_emails, msg.as_string())
 
 def main():
+    create_users_table()
+    create_plants_table()
     now = datetime.now()
     if now.time() < time(18, 0):
         print("Még nincs itt az idő az email küldéshez.")
