@@ -97,7 +97,7 @@ def show_dashboard():
     )
     import streamlit as st
 
-    create_plant_table()  # létrehozza a növények tábláját, ha még nem létezik
+    create_plant_table()  # biztosítjuk, hogy legyen növény tábla
 
     st.success(f"Bejelentkezve: {st.session_state['username']}")
     st.header("Növénykezelő Felület")
