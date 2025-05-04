@@ -5,8 +5,9 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import os
 
-DB_NAME_PLANTS = "plants.db"
-DB_NAME_USERS = "users.db"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_NAME_PLANTS = os.path.join(BASE_DIR, "plants.db")
+DB_NAME_USERS = os.path.join(BASE_DIR, "users.db")
 
 def get_all_plants():
     conn = sqlite3.connect(DB_NAME_PLANTS)
