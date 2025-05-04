@@ -104,6 +104,17 @@ def show_dashboard():
 
     username = st.session_state["username"]
 
+    # --- NAPI EMLÉKEZTETŐ ---
+    due_today_plants = get_plants_due_today(username)
+    if due_today_plants:
+        st.markdown("### ⚠️ Ma öntözendő növényeid:")
+        for plant in due_today_plants:
+            # plant = (id, username, name, frequency_days, last_watered)
+            st.write(f"🌿 **{plant[2]}** (utoljára öntözve: {plant[4]})")
+        st.markdown("---")  # elválasztó vonal
+    else:
+        st.info("Ma egy növényt sem kell öntözni. Szép napot! 🌞")
+
     # --- Növény hozzáadása űrlap ---
     with st.expander("Új növény hozzáadása"):
         with st.form("add_plant_form"):
