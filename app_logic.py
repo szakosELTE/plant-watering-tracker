@@ -189,22 +189,17 @@ def show_dashboard():
         with cols[4]:
             st.write(f"Utolsó öntöző: **{watered_by}**")
         with cols[5]:
-            if plant["username"] == username:
-                # Csak a növény létrehozója törölhet
-                if st.button("🗑️", key=f"del_{plant_id}"):
-                    # username paramétert töröld, mert nem csak a tulaj csinálhatja:
-                    delete_plant(plant_id, None)  # vagy át kell írni a delete_plant függvényt, hogy username nélkül is működjön
-                    st.success(f"Törölve: {plant['name']}")
-                    st.rerun()
-                if st.button("💧", key=f"water_{plant_id}"):
-                    # username megmarad, hogy tudjuk ki öntözött, de nem korlátozzuk az engedélyt
-                    update_last_watered_and_log(plant_id, username)
-                    st.success(f"Öntözve: {plant['name']}")
-                    st.rerun()
-            else:
-                # Mások növényeihez nem engedélyezünk szerkesztést
-                st.write("")
-
+            if st.button("🗑️", key=f"del_{plant_id}"):
+                # username paramétert töröld, mert nem csak a tulaj csinálhatja:
+                delete_plant(plant_id, None)  # vagy át kell írni a delete_plant függvényt, hogy username nélkül is működjön
+                st.success(f"Törölve: {plant['name']}")
+                st.rerun()
+            if st.button("💧", key=f"water_{plant_id}"):
+                # username megmarad, hogy tudjuk ki öntözött, de nem korlátozzuk az engedélyt
+                update_last_watered_and_log(plant_id, username)
+                st.success(f"Öntözve: {plant['name']}")
+                st.rerun()
+                
     if st.button("Kijelentkezés"):
         logout_user()
         st.rerun()
