@@ -125,3 +125,25 @@ def get_last_watering_info(plant_id):
     row = cur.fetchone()
     conn.close()
     return row  # (watered_by, watered_at) vagy None
+
+def create_users_table():
+    conn = sqlite3.connect("users.db")
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY,
+            username TEXT UNIQUE,
+            password TEXT,
+            email TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def get_all_user_emails():
+    conn = sqlite3.connect("users.db")
+    cur = conn.cursor()
+    cur.execute("SELECT email FROM users WHERE email IS NOT NULL AND email != ''")
+    emails = [row[0] for row in cur.fetchall()]
+    conn.close()
+    return emails

@@ -1,13 +1,28 @@
 import streamlit as st
 import sqlite3
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta, time
 from streamlit_cookies_manager import EncryptedCookieManager
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 # Cookie manager inicializálása
 cookies = EncryptedCookieManager(prefix="planttracker_", password="egy-erős-es-minimum-16-karakteres-jelszo")
 if not cookies.ready():
     st.stop()
+
+# SMTP email küldő függvény
+def send_email(to_emails, subject, body, sender_email, sender_password,
+               smtp_server="smtp.gmail.com", smtp_port=465):
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = ", ".join(to_emails)
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain'))
+    with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
+        server.login(sender_email, sender_password)
+        server.sendmail(sender_email, to_emails, msg.as_string())
 
 # ----- SESSION KEZELÉS ÉS ADATBÁZIS FUNKCIÓK -----
 def init_session_from_cookies():
@@ -28,13 +43,10 @@ def login_user(username):
 def logout_user():
     st.session_state["authenticated"] = False
     st.session_state["username"] = None
-
-    # Cookie-k törlése helyesen, ne állítsd None-ra
     if "authenticated" in cookies:
         del cookies["authenticated"]
     if "username" in cookies:
         del cookies["username"]
-
     cookies.save()
 
 def init_session():
@@ -50,17 +62,18 @@ def create_users_table():
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY,
             username TEXT UNIQUE,
-            password TEXT
+            password TEXT,
+            email TEXT
         )
     """)
     conn.commit()
     conn.close()
 
-def add_user(username, password):
+def add_user(username, password, email=None):
     hashed_pw = hash_password(password)
     conn = sqlite3.connect("users.db")
     cur = conn.cursor()
-    cur.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed_pw))
+    cur.execute("INSERT INTO users (username, password, email) VALUES (?, ?, ?)", (username, hashed_pw, email))
     conn.commit()
     conn.close()
 
@@ -72,12 +85,76 @@ def get_user(username):
     conn.close()
     return user
 
+def get_all_user_emails():
+    conn = sqlite3.connect("users.db")
+    cur = conn.cursor()
+    cur.execute("SELECT email FROM users WHERE email IS NOT NULL AND email != ''")
+    emails = [row[0] for row in cur.fetchall()]
+    conn.close()
+    return emails
+
 # ---------- SEGÉDFÜGGVÉNYEK ----------
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 def verify_password(input_password, stored_password):
     return hash_password(input_password) == stored_password
+
+def watered_today(plant):
+    last_watered_str = plant[4]  # last_watered mező
+    if not last_watered_str:
+        return False
+    last_watered_date = datetime.strptime(last_watered_str, "%Y-%m-%d").date()
+    return last_watered_date == datetime.now().date()
+
+def send_watering_reminder_if_needed():
+    now = datetime.now()
+    if now.time() < time(18, 0):  # 18:00 előtt ne küldjünk
+        return
+
+    from database import get_all_plants
+
+    plants = get_all_plants()
+
+    # Öntözendő növények kiszűrése az aktuális dátumhoz képest
+    plants_due_today = []
+    for p in plants:
+        last_watered_str = p[4]
+        freq = p[3]
+        if not last_watered_str:
+            plants_due_today.append(p)
+            continue
+        last_watered_date = datetime.strptime(last_watered_str, "%Y-%m-%d").date()
+        next_due_date = last_watered_date + timedelta(days=freq)
+        if datetime.now().date() >= next_due_date:
+            plants_due_today.append(p)
+
+    # Olyanok, amiket ma még nem öntöztek meg
+    not_watered_yet = [p for p in plants_due_today if not watered_today(p)]
+
+    if not not_watered_yet:
+        return
+
+    emails = get_all_user_emails()
+    if not emails:
+        return
+
+    body_lines = ["Ma még öntözni kell ezeken a növényeken:"]
+    for p in not_watered_yet:
+        body_lines.append(f"- {p[2]} (tulajdonos: {p[1]})")
+    body = "\n".join(body_lines)
+    subject = "Növény öntözési emlékeztető"
+
+    sender_email = st.secrets["email"]["address"]
+    sender_password = st.secrets["email"]["password"]
+
+    send_email(
+        to_emails=emails,
+        subject=subject,
+        body=body,
+        sender_email=sender_email,
+        sender_password=sender_password
+    )
 
 # ---------- BEJELENTKEZÉS ÉS REGISZTRÁCIÓ ----------
 def show_login():
@@ -100,14 +177,15 @@ def show_login():
         st.subheader("Regisztráció")
         new_user = st.text_input("Új felhasználónév", key="reg_user")
         new_pass = st.text_input("Új jelszó", type="password", key="reg_pass")
+        new_email = st.text_input("Email cím", key="reg_email")
         if st.button("Regisztráció"):
             if get_user(new_user):
                 st.warning("A felhasználónév már foglalt.")
-            elif new_user and new_pass:
-                add_user(new_user, new_pass)
+            elif new_user and new_pass and new_email:
+                add_user(new_user, new_pass, new_email)
                 st.success("Sikeres regisztráció! Kérlek, jelentkezz be.")
             else:
-                st.warning("Kérlek, adj meg felhasználónevet és jelszót.")
+                st.warning("Kérlek, töltsd ki az összes mezőt.")
 
 # ---------- FŐOLDAL, A KERTI NÖVÉNYEK KEZELÉSE ----------
 def show_dashboard():
@@ -119,6 +197,8 @@ def show_dashboard():
     )
     create_plant_table()
     create_watering_logs_table()
+
+    send_watering_reminder_if_needed()  # itt történik az email értesítés ellenőrzése
 
     st.success(f"Bejelentkezve: {st.session_state['username']}")
     st.header("Növénykezelő Felület")
@@ -146,7 +226,6 @@ def show_dashboard():
                     st.success(f"Hozzáadva: {plant_name.strip()}")
                     st.rerun()
 
-    # Minden növény listázása — Mindenki látja az összes növényt
     plants = get_all_plants()
     if not plants:
         st.info("Nincs még növény a rendszerben.")
@@ -163,7 +242,6 @@ def show_dashboard():
         for p in plants
     ]
 
-    # Megjelenítés
     st.subheader("Növényeid")
     for plant in plants_list:
         plant_id = plant["id"]
@@ -174,7 +252,7 @@ def show_dashboard():
         else:
             watered_by, watered_at = "Ismeretlen", "Nincs adat"
 
-        cols = st.columns([3, 2, 2, 2, 2, 2])
+        cols = st.columns([3,2,2,2,2,2])
         with cols[0]:
             st.write(f"🌿 **{plant['name']}**")
         with cols[1]:
@@ -190,16 +268,14 @@ def show_dashboard():
             st.write(f"Utolsó öntöző: **{watered_by}**")
         with cols[5]:
             if st.button("🗑️", key=f"del_{plant_id}"):
-                # username paramétert töröld, mert nem csak a tulaj csinálhatja:
-                delete_plant(plant_id, None)  # vagy át kell írni a delete_plant függvényt, hogy username nélkül is működjön
+                delete_plant(plant_id, None)
                 st.success(f"Törölve: {plant['name']}")
                 st.rerun()
             if st.button("💧", key=f"water_{plant_id}"):
-                # username megmarad, hogy tudjuk ki öntözött, de nem korlátozzuk az engedélyt
                 update_last_watered_and_log(plant_id, username)
                 st.success(f"Öntözve: {plant['name']}")
                 st.rerun()
-                
+
     if st.button("Kijelentkezés"):
         logout_user()
         st.rerun()
