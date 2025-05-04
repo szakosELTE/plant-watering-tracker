@@ -105,6 +105,7 @@ def show_dashboard():
     username = st.session_state["username"]
 
     # --- NAPI EMLÉKEZTETŐ ---
+    st.write("DEBUG: Ma öntözendő növények:", due_today_plants)
     due_today_plants = get_plants_due_today(username)
     if due_today_plants:
         st.markdown("### ⚠️ Ma öntözendő növényeid:")
