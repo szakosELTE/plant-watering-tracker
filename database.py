@@ -22,7 +22,7 @@ def create_plant_table():
     conn.commit()
     conn.close()
 
----------- CRUD FUNCTIONS ----------
+#---------- CRUD FUNCTIONS ----------
 
 def add_plant(username, name, frequency_days):
     conn = sqlite3.connect(DB_NAME)
