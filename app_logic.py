@@ -4,14 +4,40 @@ import hashlib
 from datetime import datetime
 from streamlit_cookies_manager import EncryptedCookieManager
 
-# Cookie manager inicializálása (válassz erős jelszót, itt csak példa)
+# Cookie manager inicializálása
 cookies = EncryptedCookieManager(prefix="planttracker_", password="egy-erős-es-minimum-16-karakteres-jelszo")
-
 if not cookies.ready():
-    # Várunk, amíg a cookie manager beállításra kerül
     st.stop()
 
-# ---------- ADATBÁZIS FUNKCIÓK ----------
+# ----- SESSION KEZELÉS ÉS ADATBÁZIS FUNKCIÓK -----
+def init_session_from_cookies():
+    if cookies.get("authenticated") == "true":
+        st.session_state["authenticated"] = True
+        st.session_state["username"] = cookies.get("username")
+    else:
+        st.session_state["authenticated"] = False
+        st.session_state["username"] = None
+
+def login_user(username):
+    st.session_state["authenticated"] = True
+    st.session_state["username"] = username
+    cookies["authenticated"] = "true"
+    cookies["username"] = username
+    cookies.save()
+
+def logout_user():
+    st.session_state["authenticated"] = False
+    st.session_state["username"] = None
+    cookies["authenticated"] = None
+    cookies["username"] = None
+    cookies.save()
+
+def init_session():
+    if "authenticated" not in st.session_state or "username" not in st.session_state:
+        init_session_from_cookies()
+    create_users_table()
+
+# ---------- ADATBÁZIS USER FUNKCIÓK ----------
 def create_users_table():
     conn = sqlite3.connect("users.db")
     cur = conn.cursor()
@@ -48,36 +74,6 @@ def hash_password(password):
 def verify_password(input_password, stored_password):
     return hash_password(input_password) == stored_password
 
-# ---------- COOKIE-VAL KOMPATIBILIS SESSION KEZELÉS ----------
-
-def init_session_from_cookies():
-    # Beállítjuk a session_state-et cookie alapján, ha van bejelentkezve felhasználó
-    if cookies.get("authenticated") == "true":
-        st.session_state["authenticated"] = True
-        st.session_state["username"] = cookies.get("username")
-    else:
-        st.session_state["authenticated"] = False
-        st.session_state["username"] = None
-
-def login_user(username):
-    st.session_state["authenticated"] = True
-    st.session_state["username"] = username
-    cookies["authenticated"] = "true"
-    cookies["username"] = username
-    cookies.save()
-
-def logout_user():
-    st.session_state["authenticated"] = False
-    st.session_state["username"] = None
-    cookies["authenticated"] = None
-    cookies["username"] = None
-    cookies.save()
-
-def init_session():
-    if "authenticated" not in st.session_state or "username" not in st.session_state:
-        init_session_from_cookies()
-    create_users_table()
-
 # ---------- BEJELENTKEZÉS ÉS REGISZTRÁCIÓ ----------
 def show_login():
     tabs = st.tabs(["Bejelentkezés", "Regisztráció"])
@@ -89,9 +85,9 @@ def show_login():
         if st.button("Bejelentkezés"):
             user = get_user(username)
             if user and verify_password(password, user[2]):
-                login_user(username)   # itt már a cookie-ba is mentünk
+                login_user(username)
                 st.success(f"Szia, {username}! Sikeresen bejelentkeztél.")
-                st.rerun()
+                st.experimental_rerun()
             else:
                 st.error("Érvénytelen felhasználónév vagy jelszó.")
 
@@ -111,16 +107,18 @@ def show_login():
 # ---------- FŐOLDAL, A KERTI NÖVÉNYEK KEZELÉSE ----------
 def show_dashboard():
     from database import (
-        create_plant_table, add_plant, get_user_plants,
-        delete_plant, update_last_watered, get_plants_due_today
+        create_plant_table, create_watering_logs_table,
+        add_plant, get_all_plants,
+        delete_plant, update_last_watered_and_log,
+        get_plants_due_today, get_last_watering_info
     )
     create_plant_table()
+    create_watering_logs_table()
 
     st.success(f"Bejelentkezve: {st.session_state['username']}")
     st.header("Növénykezelő Felület")
 
     username = st.session_state["username"]
-
     due_today_plants = get_plants_due_today(username)
     if due_today_plants:
         st.markdown("### ⚠️ Ma öntözendő növényeid:")
@@ -141,16 +139,18 @@ def show_dashboard():
                 else:
                     add_plant(username, plant_name.strip(), int(frequency))
                     st.success(f"Hozzáadva: {plant_name.strip()}")
-                    st.rerun()
+                    st.experimental_rerun()
 
-    plants = get_user_plants(username)
+    # Minden növény listázása — Mindenki látja az összes növényt
+    plants = get_all_plants()
     if not plants:
-        st.info("Még nincs hozzáadott növényed. Használd a fenti űrlapot!")
+        st.info("Nincs még növény a rendszerben.")
         return
     
     plants_list = [
         {
             "id": p[0],
+            "username": p[1],
             "name": p[2],
             "frequency_days": p[3],
             "last_watered": p[4],
@@ -158,15 +158,18 @@ def show_dashboard():
         for p in plants
     ]
 
-    due_plants = get_plants_due_today(username)
-    due_ids = [p[0] for p in due_plants]
-
+    # Megjelenítés
     st.subheader("Növényeid")
     for plant in plants_list:
         plant_id = plant["id"]
-        due = plant_id in due_ids
+        due = plant_id in [p[0] for p in get_plants_due_today(username)]
+        last_watering = get_last_watering_info(plant_id)
+        if last_watering:
+            watered_by, watered_at = last_watering
+        else:
+            watered_by, watered_at = "Ismeretlen", "Nincs adat"
 
-        cols = st.columns([4, 2, 2, 2, 1])
+        cols = st.columns([3, 2, 2, 2, 2, 2])
         with cols[0]:
             st.write(f"🌿 **{plant['name']}**")
         with cols[1]:
@@ -178,17 +181,23 @@ def show_dashboard():
                 st.markdown("**⚠️ Öntözni kell!**")
             else:
                 st.markdown("✅ Rendben van")
-
         with cols[4]:
-            if st.button("🗑️", key=f"del_{plant_id}"):
-                delete_plant(plant_id, username)
-                st.success(f"Törölve: {plant['name']}")
-                st.rerun()
-            if st.button("💧", key=f"water_{plant_id}"):
-                update_last_watered(plant_id, username)
-                st.success(f"Öntözve: {plant['name']}")
-                st.rerun()
+            st.write(f"Utolsó öntöző: **{watered_by}**")
+        with cols[5]:
+            if plant["username"] == username:
+                # Csak a növény létrehozója törölhet
+                if st.button("🗑️", key=f"del_{plant_id}"):
+                    delete_plant(plant_id, username)
+                    st.success(f"Törölve: {plant['name']}")
+                    st.experimental_rerun()
+                if st.button("💧", key=f"water_{plant_id}"):
+                    update_last_watered_and_log(plant_id, username)
+                    st.success(f"Öntözve: {plant['name']}")
+                    st.experimental_rerun()
+            else:
+                # Mások növényeihez nem engedélyezünk szerkesztést
+                st.write("")
 
     if st.button("Kijelentkezés"):
         logout_user()
-        st.rerun()
+        st.experimental_rerun()

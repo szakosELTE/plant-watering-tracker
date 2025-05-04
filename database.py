@@ -1,5 +1,3 @@
-# database.py
-
 import sqlite3
 from datetime import datetime, timedelta
 
@@ -22,7 +20,22 @@ def create_plant_table():
     conn.commit()
     conn.close()
 
-#---------- CRUD FUNCTIONS ----------
+def create_watering_logs_table():
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS watering_logs (
+            id INTEGER PRIMARY KEY,
+            plant_id INTEGER,
+            watered_by TEXT,
+            watered_at TEXT,
+            FOREIGN KEY (plant_id) REFERENCES plants(id)
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+# ---------- CRUD FUNCTIONS ----------
 
 def add_plant(username, name, frequency_days):
     conn = sqlite3.connect(DB_NAME)
@@ -34,11 +47,18 @@ def add_plant(username, name, frequency_days):
     conn.commit()
     conn.close()
 
-
 def get_user_plants(username):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
     cur.execute("SELECT * FROM plants WHERE username = ?", (username,))
+    rows = cur.fetchall()
+    conn.close()
+    return rows
+
+def get_all_plants():
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM plants")
     rows = cur.fetchall()
     conn.close()
     return rows
@@ -50,15 +70,30 @@ def delete_plant(plant_id, username):
     conn.commit()
     conn.close()
 
-def update_last_watered(plant_id, username):
+def update_last_watered(plant_id, username=None):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
     cur.execute("""
         UPDATE plants SET last_watered = ?
-        WHERE id = ? AND username = ?
-    """, (datetime.now().strftime("%Y-%m-%d"), plant_id, username))
+        WHERE id = ?
+    """, (datetime.now().strftime("%Y-%m-%d"), plant_id))
     conn.commit()
     conn.close()
+
+def add_watering_log(plant_id, watered_by):
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    watered_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cur.execute("""
+        INSERT INTO watering_logs (plant_id, watered_by, watered_at)
+        VALUES (?, ?, ?)
+    """, (plant_id, watered_by, watered_at))
+    conn.commit()
+    conn.close()
+
+def update_last_watered_and_log(plant_id, watered_by):
+    update_last_watered(plant_id)
+    add_watering_log(plant_id, watered_by)
 
 # ---------- DUE TODAY ----------
 
@@ -74,3 +109,16 @@ def get_plants_due_today(username):
             due_today.append(plant)
 
     return due_today
+
+def get_last_watering_info(plant_id):
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT watered_by, watered_at FROM watering_logs
+        WHERE plant_id = ?
+        ORDER BY watered_at DESC
+        LIMIT 1
+    """, (plant_id,))
+    row = cur.fetchone()
+    conn.close()
+    return row  # (watered_by, watered_at) vagy None
