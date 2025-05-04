@@ -107,43 +107,69 @@ def watered_today(plant):
     last_watered_date = datetime.strptime(last_watered_str, "%Y-%m-%d").date()
     return last_watered_date == datetime.now().date()
 
+# def send_watering_reminder_if_needed():
+#     now = datetime.now()
+#     if now.time() < time(18, 0):  # 18:00 előtt ne küldjünk
+#         return
+
+#     from database import get_all_plants
+
+#     plants = get_all_plants()
+
+#     # Öntözendő növények kiszűrése az aktuális dátumhoz képest
+#     plants_due_today = []
+#     for p in plants:
+#         last_watered_str = p[4]
+#         freq = p[3]
+#         if not last_watered_str:
+#             plants_due_today.append(p)
+#             continue
+#         last_watered_date = datetime.strptime(last_watered_str, "%Y-%m-%d").date()
+#         next_due_date = last_watered_date + timedelta(days=freq)
+#         if datetime.now().date() >= next_due_date:
+#             plants_due_today.append(p)
+
+#     # Olyanok, amiket ma még nem öntöztek meg
+#     not_watered_yet = [p for p in plants_due_today if not watered_today(p)]
+
+#     if not not_watered_yet:
+#         return
+
+#     emails = get_all_user_emails()
+#     if not emails:
+#         return
+
+#     body_lines = ["Ma még öntözni kell ezeken a növényeken:"]
+#     for p in not_watered_yet:
+#         body_lines.append(f"- {p[2]} (tulajdonos: {p[1]})")
+#     body = "\n".join(body_lines)
+#     subject = "Növény öntözési emlékeztető"
+
+#     sender_email = st.secrets["email"]["address"]
+#     sender_password = st.secrets["email"]["password"]
+
+#     send_email(
+#         to_emails=emails,
+#         subject=subject,
+#         body=body,
+#         sender_email=sender_email,
+#         sender_password=sender_password
+#     )
+
 def send_watering_reminder_if_needed():
-    now = datetime.now()
-    if now.time() < time(18, 0):  # 18:00 előtt ne küldjünk
-        return
-
+    # figyelmen kívül hagyja az idő és öntözött állapot vizsgálatot, minden növény öntözendőnek veszi
     from database import get_all_plants
-
     plants = get_all_plants()
-
-    # Öntözendő növények kiszűrése az aktuális dátumhoz képest
-    plants_due_today = []
-    for p in plants:
-        last_watered_str = p[4]
-        freq = p[3]
-        if not last_watered_str:
-            plants_due_today.append(p)
-            continue
-        last_watered_date = datetime.strptime(last_watered_str, "%Y-%m-%d").date()
-        next_due_date = last_watered_date + timedelta(days=freq)
-        if datetime.now().date() >= next_due_date:
-            plants_due_today.append(p)
-
-    # Olyanok, amiket ma még nem öntöztek meg
-    not_watered_yet = [p for p in plants_due_today if not watered_today(p)]
-
-    if not not_watered_yet:
-        return
 
     emails = get_all_user_emails()
     if not emails:
         return
 
-    body_lines = ["Ma még öntözni kell ezeken a növényeken:"]
-    for p in not_watered_yet:
+    body_lines = ["Teszt: minden növény öntözendőnek van jelölve."]
+    for p in plants:
         body_lines.append(f"- {p[2]} (tulajdonos: {p[1]})")
     body = "\n".join(body_lines)
-    subject = "Növény öntözési emlékeztető"
+    subject = "Teszt növény öntözési értesítő"
 
     sender_email = st.secrets["email"]["address"]
     sender_password = st.secrets["email"]["password"]
