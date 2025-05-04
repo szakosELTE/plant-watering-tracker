@@ -28,8 +28,13 @@ def login_user(username):
 def logout_user():
     st.session_state["authenticated"] = False
     st.session_state["username"] = None
-    cookies["authenticated"] = None
-    cookies["username"] = None
+
+    # Cookie-k törlése helyesen, ne állítsd None-ra
+    if "authenticated" in cookies:
+        del cookies["authenticated"]
+    if "username" in cookies:
+        del cookies["username"]
+
     cookies.save()
 
 def init_session():
