@@ -2,7 +2,7 @@ name: Növényöntözés email értesítő
 
 on:
   schedule:
-    - cron: '0 14 * * *'  # minden nap 18:00-kor UTC idő szerint
+    - cron: '0 16 * * *'  # minden nap 18:00-kor UTC idő szerint
   workflow_dispatch:     # manuális indítás lehetősége
 
 jobs:
