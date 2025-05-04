@@ -192,10 +192,12 @@ def show_dashboard():
             if plant["username"] == username:
                 # Csak a növény létrehozója törölhet
                 if st.button("🗑️", key=f"del_{plant_id}"):
-                    delete_plant(plant_id, username)
+                    # username paramétert töröld, mert nem csak a tulaj csinálhatja:
+                    delete_plant(plant_id, None)  # vagy át kell írni a delete_plant függvényt, hogy username nélkül is működjön
                     st.success(f"Törölve: {plant['name']}")
                     st.rerun()
                 if st.button("💧", key=f"water_{plant_id}"):
+                    # username megmarad, hogy tudjuk ki öntözött, de nem korlátozzuk az engedélyt
                     update_last_watered_and_log(plant_id, username)
                     st.success(f"Öntözve: {plant['name']}")
                     st.rerun()

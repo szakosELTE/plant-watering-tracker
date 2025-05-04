@@ -63,10 +63,13 @@ def get_all_plants():
     conn.close()
     return rows
 
-def delete_plant(plant_id, username):
+def delete_plant(plant_id, username=None):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute("DELETE FROM plants WHERE id = ? AND username = ?", (plant_id, username))
+    if username is None:
+        cur.execute("DELETE FROM plants WHERE id = ?", (plant_id,))
+    else:
+        cur.execute("DELETE FROM plants WHERE id = ? AND username = ?", (plant_id, username))
     conn.commit()
     conn.close()
 
