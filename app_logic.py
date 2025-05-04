@@ -6,13 +6,9 @@ import hashlib
 from datetime import datetime
 
 
-# def rerun():
-#     params = st.query_params
-#     params["_rerun"] = [str(int(datetime.now().timestamp()))]
-#     st.query_params = params
-#     st.stop()
+# újraindítás funkció - szükség esetén ide beilleszthető
 
-# ---------- DATABASE FUNCTIONS ----------
+# ---------- ADATBÁZIS FUNKCIÓK ----------
 
 def create_users_table():
     conn = sqlite3.connect("users.db")
@@ -43,7 +39,7 @@ def get_user(username):
     conn.close()
     return user
 
-# ---------- UTILITIES ----------
+# ---------- SEGÉDFÜGGVÉNYEK ----------
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -51,7 +47,7 @@ def hash_password(password):
 def verify_password(input_password, stored_password):
     return hash_password(input_password) == stored_password
 
-# ---------- SESSION INIT ----------
+# ---------- MUNKAFOLYAM ÁLLAPOT (SESSION) KEZELÉS ----------
 
 def init_session():
     if "authenticated" not in st.session_state:
@@ -60,39 +56,39 @@ def init_session():
         st.session_state["username"] = None
     create_users_table()
 
-# ---------- LOGIN / REGISTRATION ----------
+# ---------- BEJELENTKEZÉS ÉS REGISZTRÁCIÓ ----------
 
 def show_login():
-    tabs = st.tabs(["Login", "Register"])
+    tabs = st.tabs(["Bejelentkezés", "Regisztráció"])
 
     with tabs[0]:
-        st.subheader("Login")
-        username = st.text_input("Username", key="login_user")
-        password = st.text_input("Password", type="password", key="login_pass")
-        if st.button("Login"):
+        st.subheader("Bejelentkezés")
+        username = st.text_input("Felhasználónév", key="login_user")
+        password = st.text_input("Jelszó", type="password", key="login_pass")
+        if st.button("Bejelentkezés"):
             user = get_user(username)
             if user and verify_password(password, user[2]):
                 st.session_state["authenticated"] = True
                 st.session_state["username"] = username
-                st.success(f"Welcome back, {username}!")
+                st.success(f"Szia, {username}! Sikeresen bejelentkeztél.")
                 st.rerun()
             else:
-                st.error("Invalid username or password.")
+                st.error("Érvénytelen felhasználónév vagy jelszó.")
 
     with tabs[1]:
-        st.subheader("Register")
-        new_user = st.text_input("New Username", key="reg_user")
-        new_pass = st.text_input("New Password", type="password", key="reg_pass")
-        if st.button("Register"):
+        st.subheader("Regisztráció")
+        new_user = st.text_input("Új felhasználónév", key="reg_user")
+        new_pass = st.text_input("Új jelszó", type="password", key="reg_pass")
+        if st.button("Regisztráció"):
             if get_user(new_user):
-                st.warning("Username already taken.")
+                st.warning("A felhasználónév már foglalt.")
             elif new_user and new_pass:
                 add_user(new_user, new_pass)
-                st.success("User registered. Please log in.")
+                st.success("Sikeres regisztráció! Kérlek, jelentkezz be.")
             else:
-                st.warning("Please enter a username and password.")
+                st.warning("Kérlek, adj meg felhasználónevet és jelszót.")
 
-# ---------- DASHBOARD ----------
+# ---------- FŐOLDAL, A KERTI NÖVÉNYEK KEZELÉSE ----------
 
 def show_dashboard():
     from database import (
@@ -101,35 +97,35 @@ def show_dashboard():
     )
     import streamlit as st
 
-    create_plant_table()  # ensure plants table exists
+    create_plant_table()  # létrehozza a növények tábláját, ha még nem létezik
 
-    st.success(f"Logged in as {st.session_state['username']}")
-    st.header("Your Plant Dashboard")
+    st.success(f"Bejelentkezve: {st.session_state['username']}")
+    st.header("Növénykezelő Felület")
 
     username = st.session_state["username"]
 
-    # --- Form to add plant ---
-    with st.expander("Add a New Plant"):
+    # --- Növény hozzáadása űrlap ---
+    with st.expander("Új növény hozzáadása"):
         with st.form("add_plant_form"):
-            plant_name = st.text_input("Plant Name", key="new_plant_name")
-            frequency = st.number_input("Watering Frequency (days)", min_value=1, max_value=365, step=1, key="new_plant_freq")
-            submitted = st.form_submit_button("Add Plant")
+            plant_name = st.text_input("Növény neve", key="new_plant_name")
+            frequency = st.number_input("Öntözés gyakorisága (napokban)", min_value=1, max_value=365, step=1, key="new_plant_freq")
+            submitted = st.form_submit_button("Növény hozzáadása")
 
             if submitted:
                 if plant_name.strip() == "":
-                    st.warning("Please enter a plant name.")
+                    st.warning("Kérlek, add meg a növény nevét.")
                 else:
                     add_plant(username, plant_name.strip(), int(frequency))
-                    st.success(f"Added plant: {plant_name.strip()}")
-                    st.rerun()  # refresh after submission
+                    st.success(f"Hozzáadva: {plant_name.strip()}")
+                    st.rerun()  # frissítés a hozzáadás után
 
-    # --- List user plants ---
+    # --- Növények listázása ---
     plants = get_user_plants(username)
     if not plants:
-        st.info("You have no plants yet. Add one above!")
+        st.info("Még nincs hozzáadott növényed. Használd a fenti űrlapot!")
         return
     
-    # Convert to a list of dicts for easier handling
+    # Átalakítás könnyebb kezeléshez
     plants_list = [
         {
             "id": p[0],
@@ -143,7 +139,7 @@ def show_dashboard():
     due_plants = get_plants_due_today(username)
     due_ids = [p[0] for p in due_plants]
 
-    st.subheader("Your Plants")
+    st.subheader("Növényeid")
     for plant in plants_list:
         plant_id = plant["id"]
         due = plant_id in due_ids
@@ -152,29 +148,29 @@ def show_dashboard():
         with cols[0]:
             st.write(f"🌿 **{plant['name']}**")
         with cols[1]:
-            st.write(f"Every {plant['frequency_days']} day(s)")
+            st.write(f"Minden {plant['frequency_days']} nap")
         with cols[2]:
-            st.write(f"Last watered: {plant['last_watered']}")
+            st.write(f"Utolsó öntözés: {plant['last_watered']}")
         with cols[3]:
             if due:
-                st.markdown("**⚠️ Needs water!**")
+                st.markdown("**⚠️ Öntözni kell!**")
             else:
-                st.markdown("✅ Up to date")
+                st.markdown("✅ Rendben van")
 
-        # Buttons for actions (delete, mark watered)
+        # Műveleti gombok (törlés, öntözés jelölése)
         with cols[4]:
             if st.button("🗑️", key=f"del_{plant_id}"):
                 delete_plant(plant_id, username)
-                st.success(f"Deleted {plant['name']}")
+                st.success(f"Törölve: {plant['name']}")
                 st.rerun()
 
             if st.button("💧", key=f"water_{plant_id}"):
                 update_last_watered(plant_id, username)
-                st.success(f"Marked {plant['name']} as watered.")
+                st.success(f"Öntözve: {plant['name']}")
                 st.rerun()
 
-    # --- Logout ---
-    if st.button("Log out"):
+    # --- Kijelentkezés ---
+    if st.button("Kijelentkezés"):
         st.session_state["authenticated"] = False
         st.session_state["username"] = None
         st.rerun()
