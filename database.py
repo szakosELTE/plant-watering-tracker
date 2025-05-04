@@ -24,13 +24,27 @@ def create_plant_table():
 
 # ---------- CRUD FUNCTIONS ----------
 
+# def add_plant(username, name, frequency_days):
+#     conn = sqlite3.connect(DB_NAME)
+#     cur = conn.cursor()
+#     cur.execute("""
+#         INSERT INTO plants (username, name, frequency_days, last_watered)
+#         VALUES (?, ?, ?, ?)
+#     """, (username, name, frequency_days, datetime.now().strftime("%Y-%m-%d")))
+#     conn.commit()
+#     conn.close()
+
+from datetime import datetime, timedelta
+
 def add_plant(username, name, frequency_days):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
+    # last_watered legyen 7 nappal korábbi tesztként:
+    test_date = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
     cur.execute("""
         INSERT INTO plants (username, name, frequency_days, last_watered)
         VALUES (?, ?, ?, ?)
-    """, (username, name, frequency_days, datetime.now().strftime("%Y-%m-%d")))
+    """, (username, name, frequency_days, test_date))
     conn.commit()
     conn.close()
 
