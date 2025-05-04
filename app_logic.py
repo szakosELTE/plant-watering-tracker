@@ -106,7 +106,7 @@ def show_dashboard():
 
     # --- NAPI EMLÉKEZTETŐ ---
     due_today_plants = get_plants_due_today(username)
-    st.write("DEBUG: Ma öntözendő növények:", due_today_plants)
+    #st.write("DEBUG: Ma öntözendő növények:", due_today_plants)
     if due_today_plants:
         st.markdown("### ⚠️ Ma öntözendő növényeid:")
         for plant in due_today_plants:
