@@ -187,23 +187,62 @@ def show_login():
             else:
                 st.warning("Kérlek, töltsd ki az összes mezőt.")
 
-# ---------- FŐOLDAL, A KERTI NÖVÉNYEK KEZELÉSE ----------
 def show_dashboard():
     from database import (
         create_plant_table, create_watering_logs_table,
         add_plant, get_all_plants,
         delete_plant, update_last_watered_and_log,
-        get_plants_due_today, get_last_watering_info
+        get_plants_due_today, get_last_watering_info,
+        get_user_email, delete_user_and_plants
     )
+    import smtplib
+    from email.mime.text import MIMEText
+
     create_plant_table()
     create_watering_logs_table()
 
-    send_watering_reminder_if_needed()  # itt történik az email értesítés ellenőrzése
+    send_watering_reminder_if_needed()  # az email értesítés ellenőrzése
 
     st.success(f"Bejelentkezve: {st.session_state['username']}")
     st.header("Növénykezelő Felület")
 
     username = st.session_state["username"]
+    user_email = get_user_email(username)
+    sender_email = st.secrets["email"]["address"]
+    sender_password = st.secrets["email"]["password"]
+
+    def send_test_email():
+        if not user_email:
+            st.error("Az email címed nincs megadva, nem lehet teszt emailt küldeni.")
+            return
+        msg = MIMEText("Ez egy teszt email a Plant Watering Tracker appból.")
+        msg['Subject'] = "Teszt Email"
+        msg['From'] = sender_email
+        msg['To'] = user_email
+        try:
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+                server.login(sender_email, sender_password)
+                server.send_message(msg)
+            st.success(f"Teszt email elküldve a(z) {user_email} címre.")
+        except Exception as e:
+            st.error(f"Hiba történt a teszt email küldésekor: {e}")
+
+    if st.button("Teszt Email küldése"):
+        send_test_email()
+
+    st.markdown("---")
+    st.subheader("Profil törlése")
+    confirm_del = st.checkbox("Biztos vagyok benne, hogy törlöm a profilomat és az összes növényemet")
+    if st.button("Fiókom törlése és kijelentkezés"):
+        if confirm_del:
+            delete_user_and_plants(username)
+            logout_user()
+            st.success("Sikeresen töröltük a profilod és kijelentkeztünk.")
+            st.rerun()
+        else:
+            st.warning("Kérlek, erősítsd meg a profil törlését az előző jelölőnégyzettel!")
+
+    # Öntözendő növények listája
     due_today_plants = get_plants_due_today(username)
     if due_today_plants:
         st.markdown("### ⚠️ Ma öntözendő növényeid:")
@@ -230,7 +269,7 @@ def show_dashboard():
     if not plants:
         st.info("Nincs még növény a rendszerben.")
         return
-    
+
     plants_list = [
         {
             "id": p[0],

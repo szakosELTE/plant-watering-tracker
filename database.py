@@ -140,13 +140,21 @@ def create_users_table():
     conn.commit()
     conn.close()
 
-def get_all_user_emails():
-    conn = sqlite3.connect("users.db")
+def get_user_email(username):
+    conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute("SELECT email FROM users WHERE email IS NOT NULL AND email != ''")
-    emails = [row[0] for row in cur.fetchall()]
+    cur.execute("SELECT email FROM users WHERE username = ?", (username,))
+    row = cur.fetchone()
     conn.close()
-    return emails
+    return row[0] if row else None
+
+def delete_user_and_plants(username):
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM plants WHERE username = ?", (username,))
+    cur.execute("DELETE FROM users WHERE username = ?", (username,))
+    conn.commit()
+    conn.close()
 
 def create_users_table():
     conn = sqlite3.connect("users.db")
