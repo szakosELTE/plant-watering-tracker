@@ -87,7 +87,7 @@ def show_login():
             if user and verify_password(password, user[2]):
                 login_user(username)
                 st.success(f"Szia, {username}! Sikeresen bejelentkeztél.")
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("Érvénytelen felhasználónév vagy jelszó.")
 
@@ -139,7 +139,7 @@ def show_dashboard():
                 else:
                     add_plant(username, plant_name.strip(), int(frequency))
                     st.success(f"Hozzáadva: {plant_name.strip()}")
-                    st.experimental_rerun()
+                    st.rerun()
 
     # Minden növény listázása — Mindenki látja az összes növényt
     plants = get_all_plants()
@@ -189,15 +189,15 @@ def show_dashboard():
                 if st.button("🗑️", key=f"del_{plant_id}"):
                     delete_plant(plant_id, username)
                     st.success(f"Törölve: {plant['name']}")
-                    st.experimental_rerun()
+                    st.rerun()
                 if st.button("💧", key=f"water_{plant_id}"):
                     update_last_watered_and_log(plant_id, username)
                     st.success(f"Öntözve: {plant['name']}")
-                    st.experimental_rerun()
+                    st.rerun()
             else:
                 # Mások növényeihez nem engedélyezünk szerkesztést
                 st.write("")
 
     if st.button("Kijelentkezés"):
         logout_user()
-        st.experimental_rerun()
+        st.rerun()
